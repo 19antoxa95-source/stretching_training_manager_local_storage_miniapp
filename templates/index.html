@@ -964,10 +964,54 @@
             const jsonString = JSON.stringify(data, null, 2);
             const fileName = `stretch-studio-backup-${Date.now()}.json`;
             
-            // Try to use File System Access API (lets user choose location)
-            if ('showSaveFilePicker' in window) {
+            // === TELEGRAM MINI APP (iOS & Android) ===
+            if (tg && tg.platform) {
                 try {
-                    // Show save file dialog - user can choose location!
+                    // For Telegram, we'll create a shareable link
+                    const blob = new Blob([jsonString], {type: 'application/json'});
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create temporary download link
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    
+                    // Trigger download
+                    a.click();
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    // Show success with instructions for iOS
+                    if (tg.platform === 'ios' || tg.platform === 'macos') {
+                        tg.showAlert(
+                            t('exportSuccess') + '\n\n' +
+                            '📱 iOS: File downloaded!\n' +
+                            '1. Tap "Share" button\n' +
+                            '2. Choose "Save to Files"\n' +
+                            '3. Select folder (iCloud, Drive, etc.)'
+                        );
+                    } else {
+                        tg.showAlert(t('exportSuccess'));
+                    }
+                    
+                    tg.HapticFeedback.notificationOccurred('success');
+                    return;
+                } catch (err) {
+                    console.error('Telegram export error:', err);
+                    // Fall through to other methods
+                }
+            }
+            
+            // === DESKTOP: File System Access API ===
+            if ('showSaveFilePicker' in window && !tg) {
+                try {
+                    // Show save file dialog - user chooses location!
                     const handle = await window.showSaveFilePicker({
                         suggestedName: fileName,
                         types: [{
@@ -981,12 +1025,7 @@
                     await writable.write(jsonString);
                     await writable.close();
                     
-                    if (tg) {
-                        tg.showAlert(t('exportSuccess'));
-                        tg.HapticFeedback.notificationOccurred('success');
-                    } else {
-                        alert(t('exportSuccess'));
-                    }
+                    alert(t('exportSuccess'));
                     return;
                 } catch (err) {
                     // User cancelled or error - fall back to download
@@ -997,13 +1036,15 @@
                 }
             }
             
-            // Fallback: Regular download (mobile/Telegram/older browsers)
+            // === FALLBACK: Regular download ===
             const blob = new Blob([jsonString], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = fileName;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
             if (tg) {
