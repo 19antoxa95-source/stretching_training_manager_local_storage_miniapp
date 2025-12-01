@@ -964,54 +964,40 @@
             const jsonString = JSON.stringify(data, null, 2);
             const fileName = `stretch-studio-backup-${Date.now()}.json`;
             
-            // === TELEGRAM MINI APP (iOS & Android) ===
-            if (tg && tg.platform) {
+            // === iOS/MOBILE: Use Web Share API with File ===
+            if (navigator.share && navigator.canShare) {
                 try {
-                    // For Telegram, we'll create a shareable link
-                    const blob = new Blob([jsonString], {type: 'application/json'});
-                    const url = URL.createObjectURL(blob);
+                    // Create a File object (works on iOS!)
+                    const file = new File([jsonString], fileName, {
+                        type: 'application/json'
+                    });
                     
-                    // Create temporary download link
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
-                    
-                    // Trigger download
-                    a.click();
-                    
-                    // Cleanup
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                    
-                    // Show success with instructions for iOS
-                    if (tg.platform === 'ios' || tg.platform === 'macos') {
-                        tg.showAlert(
-                            t('exportSuccess') + '\n\n' +
-                            '📱 iOS: File downloaded!\n' +
-                            '1. Tap "Share" button\n' +
-                            '2. Choose "Save to Files"\n' +
-                            '3. Select folder (iCloud, Drive, etc.)'
-                        );
-                    } else {
-                        tg.showAlert(t('exportSuccess'));
+                    // Check if we can share files
+                    if (navigator.canShare({ files: [file] })) {
+                        // Share the actual file - iOS will show share sheet!
+                        await navigator.share({
+                            files: [file],
+                            title: 'Stretch Studio Backup',
+                            text: 'Backup data from Stretch Studio Manager'
+                        });
+                        
+                        if (tg) {
+                            tg.HapticFeedback.notificationOccurred('success');
+                        }
+                        return;
                     }
-                    
-                    tg.HapticFeedback.notificationOccurred('success');
-                    return;
                 } catch (err) {
-                    console.error('Telegram export error:', err);
-                    // Fall through to other methods
+                    if (err.name === 'AbortError') {
+                        // User cancelled share - that's ok
+                        return;
+                    }
+                    console.log('Web Share API failed, trying fallback:', err);
                 }
             }
             
             // === DESKTOP: File System Access API ===
             if ('showSaveFilePicker' in window && !tg) {
                 try {
-                    // Show save file dialog - user chooses location!
                     const handle = await window.showSaveFilePicker({
                         suggestedName: fileName,
                         types: [{
@@ -1020,7 +1006,6 @@
                         }]
                     });
                     
-                    // Write file to chosen location
                     const writable = await handle.createWritable();
                     await writable.write(jsonString);
                     await writable.close();
@@ -1028,24 +1013,22 @@
                     alert(t('exportSuccess'));
                     return;
                 } catch (err) {
-                    // User cancelled or error - fall back to download
                     if (err.name === 'AbortError') {
-                        return; // User cancelled - don't show error
+                        return;
                     }
-                    console.log('Save picker not available, using download fallback');
+                    console.log('Save picker not available, using fallback');
                 }
             }
             
-            // === FALLBACK: Regular download ===
-            const blob = new Blob([jsonString], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
+            // === FALLBACK: Create data URI and prompt user ===
+            // This is last resort for browsers that don't support file sharing
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonString);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = dataUri;
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
             
             if (tg) {
                 tg.showAlert(t('exportSuccess'));
