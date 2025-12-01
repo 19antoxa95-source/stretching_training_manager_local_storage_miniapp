@@ -953,7 +953,7 @@
         }
 
         // Export/Import/Clear functions
-        function exportData() {
+        async function exportData() {
             const data = {
                 studios,
                 sessions,
@@ -961,11 +961,48 @@
                 version: '1.0'
             };
             
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const jsonString = JSON.stringify(data, null, 2);
+            const fileName = `stretch-studio-backup-${Date.now()}.json`;
+            
+            // Try to use File System Access API (lets user choose location)
+            if ('showSaveFilePicker' in window) {
+                try {
+                    // Show save file dialog - user can choose location!
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'JSON Files',
+                            accept: {'application/json': ['.json']}
+                        }]
+                    });
+                    
+                    // Write file to chosen location
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonString);
+                    await writable.close();
+                    
+                    if (tg) {
+                        tg.showAlert(t('exportSuccess'));
+                        tg.HapticFeedback.notificationOccurred('success');
+                    } else {
+                        alert(t('exportSuccess'));
+                    }
+                    return;
+                } catch (err) {
+                    // User cancelled or error - fall back to download
+                    if (err.name === 'AbortError') {
+                        return; // User cancelled - don't show error
+                    }
+                    console.log('Save picker not available, using download fallback');
+                }
+            }
+            
+            // Fallback: Regular download (mobile/Telegram/older browsers)
+            const blob = new Blob([jsonString], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `stretch-studio-backup-${Date.now()}.json`;
+            a.download = fileName;
             a.click();
             URL.revokeObjectURL(url);
             
