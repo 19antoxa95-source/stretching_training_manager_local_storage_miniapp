@@ -62,6 +62,12 @@
         .modal-content { padding: 16px; padding-bottom: 80px; }
         .info-box { background: #e7f3ff; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #0066cc; }
         .info-box-text { font-size: 13px; color: #0066cc; line-height: 1.5; }
+        .bulk-operation-content { margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--tg-theme-hint-color, #e5e5e5); animation: slideDown 0.3s ease-out; }
+        .operation-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--tg-theme-hint-color, #e5e5e5); }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -121,47 +127,109 @@
                 <button class="btn btn-primary" onclick="openSessionModal()" data-lang-key="btnAddSession">➕ Add Training Session</button>
             </div>
             
-            <!-- Bulk Payment Section -->
+            <!-- Bulk Operations Menu -->
             <div class="card">
-                <h2 class="section-title" data-lang-key="bulkPaymentTitle">💰 Mark Multiple as Paid</h2>
-                <div class="filter-section">
-                    <div class="form-group">
-                        <label data-lang-key="labelStudio">Studio</label>
-                        <select class="input-field" id="bulkPaymentStudio">
-                            <option value="" data-lang-key="allStudios">All Studios</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label data-lang-key="labelFromDate">From Date</label>
-                        <input type="date" class="input-field" id="bulkPaymentDateFrom">
-                    </div>
-                    <div class="form-group">
-                        <label data-lang-key="labelToDate">To Date</label>
-                        <input type="date" class="input-field" id="bulkPaymentDateTo">
-                    </div>
-                    <button class="btn btn-primary" onclick="showUnpaidSessions()" data-lang-key="btnShowUnpaid">🔍 Show Unpaid Sessions</button>
+                <h2 class="section-title" data-lang-key="bulkOperationsTitle">⚡ Bulk Operations</h2>
+                <div class="form-group">
+                    <label data-lang-key="selectOperation">Select Operation:</label>
+                    <select class="input-field" id="bulkOperationType" onchange="showBulkOperation(this.value)" style="font-size: 16px; font-weight: 500;">
+                        <option value="" data-lang-key="selectOperationOption">-- Select Operation --</option>
+                        <option value="mark-paid" data-lang-key="optionMarkPaid">💰 Mark Multiple as Paid</option>
+                        <option value="mark-unpaid" data-lang-key="optionMarkUnpaid">🔄 Unmark Paid Sessions</option>
+                    </select>
                 </div>
                 
-                <!-- Unpaid Sessions List -->
-                <div id="unpaidSessionsList" style="display: none; margin-top: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 class="section-title" style="margin: 0;" data-lang-key="unpaidSessionsTitle">Unpaid Sessions</h3>
-                        <div>
-                            <button class="btn btn-secondary" onclick="selectAllUnpaid()" data-lang-key="btnSelectAll" style="padding: 8px 12px; font-size: 14px; margin-right: 8px;">☑️ Select All</button>
-                            <button class="btn btn-secondary" onclick="deselectAllUnpaid()" data-lang-key="btnDeselectAll" style="padding: 8px 12px; font-size: 14px;">☐ Deselect All</button>
+                <!-- Mark as Paid Operation -->
+                <div id="bulkMarkPaid" class="bulk-operation-content" style="display: none;">
+                    <div class="operation-header">
+                        <h3 style="margin: 0; color: var(--tg-theme-button-color);" data-lang-key="bulkPaymentTitle">💰 Mark Multiple as Paid</h3>
+                    </div>
+                    <div class="filter-section">
+                        <div class="form-group">
+                            <label data-lang-key="labelStudio">Studio</label>
+                            <select class="input-field" id="bulkPaymentStudio">
+                                <option value="" data-lang-key="allStudios">All Studios</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-lang-key="labelFromDate">From Date</label>
+                            <input type="date" class="input-field" id="bulkPaymentDateFrom">
+                        </div>
+                        <div class="form-group">
+                            <label data-lang-key="labelToDate">To Date</label>
+                            <input type="date" class="input-field" id="bulkPaymentDateTo">
+                        </div>
+                        <button class="btn btn-primary" onclick="showUnpaidSessions()" data-lang-key="btnShowUnpaid">🔍 Show Unpaid Sessions</button>
+                    </div>
+                    
+                    <!-- Unpaid Sessions List -->
+                    <div id="unpaidSessionsList" style="display: none; margin-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                            <h3 class="section-title" style="margin: 0;" data-lang-key="unpaidSessionsTitle">Unpaid Sessions</h3>
+                            <div>
+                                <button class="btn btn-secondary" onclick="selectAllUnpaid()" data-lang-key="btnSelectAll" style="padding: 8px 12px; font-size: 14px; margin-right: 8px;">☑️ Select All</button>
+                                <button class="btn btn-secondary" onclick="deselectAllUnpaid()" data-lang-key="btnDeselectAll" style="padding: 8px 12px; font-size: 14px;">☐ Deselect All</button>
+                            </div>
+                        </div>
+                        <div id="unpaidSessionsContent"></div>
+                        <div style="margin-top: 12px; padding: 12px; background: var(--tg-theme-secondary-bg-color); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span data-lang-key="selectedCount">Selected:</span>
+                                <strong id="selectedCount">0</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span data-lang-key="totalAmount">Total Amount:</span>
+                                <strong style="color: var(--tg-theme-button-color); font-size: 18px;" id="totalAmount">₾0.00</strong>
+                            </div>
+                            <button class="btn btn-primary" onclick="markSelectedAsPaid()" data-lang-key="btnMarkAsPaid" style="width: 100%;">✅ Mark Selected as Paid</button>
                         </div>
                     </div>
-                    <div id="unpaidSessionsContent"></div>
-                    <div style="margin-top: 12px; padding: 12px; background: var(--tg-theme-secondary-bg-color); border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span data-lang-key="selectedCount">Selected:</span>
-                            <strong id="selectedCount">0</strong>
+                </div>
+                
+                <!-- Mark as Unpaid Operation -->
+                <div id="bulkMarkUnpaid" class="bulk-operation-content" style="display: none;">
+                    <div class="operation-header">
+                        <h3 style="margin: 0; color: #856404;" data-lang-key="bulkUnmarkTitle">🔄 Unmark Paid Sessions</h3>
+                    </div>
+                    <div class="filter-section">
+                        <div class="form-group">
+                            <label data-lang-key="labelStudio">Studio</label>
+                            <select class="input-field" id="bulkUnmarkStudio">
+                                <option value="" data-lang-key="allStudios">All Studios</option>
+                            </select>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <span data-lang-key="totalAmount">Total Amount:</span>
-                            <strong style="color: var(--tg-theme-button-color); font-size: 18px;" id="totalAmount">₾0.00</strong>
+                        <div class="form-group">
+                            <label data-lang-key="labelFromDate">From Date</label>
+                            <input type="date" class="input-field" id="bulkUnmarkDateFrom">
                         </div>
-                        <button class="btn btn-primary" onclick="markSelectedAsPaid()" data-lang-key="btnMarkAsPaid" style="width: 100%;">✅ Mark Selected as Paid</button>
+                        <div class="form-group">
+                            <label data-lang-key="labelToDate">To Date</label>
+                            <input type="date" class="input-field" id="bulkUnmarkDateTo">
+                        </div>
+                        <button class="btn btn-secondary" onclick="showPaidSessions()" data-lang-key="btnShowPaid">🔍 Show Paid Sessions</button>
+                    </div>
+                    
+                    <!-- Paid Sessions List -->
+                    <div id="paidSessionsList" style="display: none; margin-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                            <h3 class="section-title" style="margin: 0;" data-lang-key="paidSessionsTitle">Paid Sessions</h3>
+                            <div>
+                                <button class="btn btn-secondary" onclick="selectAllPaid()" data-lang-key="btnSelectAll" style="padding: 8px 12px; font-size: 14px; margin-right: 8px;">☑️ Select All</button>
+                                <button class="btn btn-secondary" onclick="deselectAllPaid()" data-lang-key="btnDeselectAll" style="padding: 8px 12px; font-size: 14px;">☐ Deselect All</button>
+                            </div>
+                        </div>
+                        <div id="paidSessionsContent"></div>
+                        <div style="margin-top: 12px; padding: 12px; background: var(--tg-theme-secondary-bg-color); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span data-lang-key="selectedCount">Selected:</span>
+                                <strong id="selectedUnmarkCount">0</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span data-lang-key="totalAmount">Total Amount:</span>
+                                <strong style="color: var(--tg-theme-button-color); font-size: 18px;" id="totalUnmarkAmount">₾0.00</strong>
+                            </div>
+                            <button class="btn btn-secondary" onclick="markSelectedAsUnpaid()" data-lang-key="btnMarkAsUnpaid" style="width: 100%; background: #fff3cd; color: #856404; border-color: #ffc107;">🔄 Mark Selected as Unpaid</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -371,6 +439,11 @@
                 group: 'Group',
                 individual: 'Individual',
                 at: 'at',
+                bulkOperationsTitle: '⚡ Bulk Operations',
+                selectOperation: 'Select Operation:',
+                selectOperationOption: '-- Select Operation --',
+                optionMarkPaid: '💰 Mark Multiple as Paid',
+                optionMarkUnpaid: '🔄 Unmark Paid Sessions',
                 bulkPaymentTitle: '💰 Mark Multiple as Paid',
                 btnShowUnpaid: '🔍 Show Unpaid Sessions',
                 unpaidSessionsTitle: 'Unpaid Sessions',
@@ -381,7 +454,15 @@
                 btnMarkAsPaid: '✅ Mark Selected as Paid',
                 noUnpaidSessions: 'No unpaid sessions found in this period.',
                 sessionMarkedPaid: 'sessions marked as paid!',
-                pleaseSelectSessions: 'Please select at least one session.'
+                pleaseSelectSessions: 'Please select at least one session.',
+                bulkUnmarkTitle: '🔄 Unmark Paid Sessions',
+                btnShowPaid: '🔍 Show Paid Sessions',
+                paidSessionsTitle: 'Paid Sessions',
+                btnMarkAsUnpaid: '🔄 Mark Selected as Unpaid',
+                btnMarkUnpaid: '🔄 Mark Unpaid',
+                noPaidSessions: 'No paid sessions found in this period.',
+                sessionMarkedUnpaid: 'sessions marked as unpaid!',
+                confirmUnmark: 'Mark as unpaid? This will set the session back to pending payment.'
             },
             ru: {
                 appTitle: 'Менеджер Студии',
@@ -446,6 +527,11 @@
                 group: 'Группа',
                 individual: 'Индивидуально',
                 at: 'в',
+                bulkOperationsTitle: '⚡ Массовые операции',
+                selectOperation: 'Выберите операцию:',
+                selectOperationOption: '-- Выберите операцию --',
+                optionMarkPaid: '💰 Отметить несколько как оплаченные',
+                optionMarkUnpaid: '🔄 Отменить оплату сессий',
                 bulkPaymentTitle: '💰 Отметить несколько как оплаченные',
                 btnShowUnpaid: '🔍 Показать неоплаченные',
                 unpaidSessionsTitle: 'Неоплаченные сессии',
@@ -456,7 +542,15 @@
                 btnMarkAsPaid: '✅ Отметить выбранные как оплаченные',
                 noUnpaidSessions: 'Неоплаченные сессии не найдены в этом периоде.',
                 sessionMarkedPaid: 'сессий отмечено как оплаченные!',
-                pleaseSelectSessions: 'Пожалуйста, выберите хотя бы одну сессию.'
+                pleaseSelectSessions: 'Пожалуйста, выберите хотя бы одну сессию.',
+                bulkUnmarkTitle: '🔄 Отменить оплату сессий',
+                btnShowPaid: '🔍 Показать оплаченные',
+                paidSessionsTitle: 'Оплаченные сессии',
+                btnMarkAsUnpaid: '🔄 Отметить выбранные как неоплаченные',
+                btnMarkUnpaid: '🔄 Отменить оплату',
+                noPaidSessions: 'Оплаченные сессии не найдены в этом периоде.',
+                sessionMarkedUnpaid: 'сессий отмечено как неоплаченные!',
+                confirmUnmark: 'Отменить оплату? Сессия вернется в ожидание оплаты.'
             }
         };
 
@@ -717,7 +811,7 @@
                             </div>
                         </div>
                         <div class="action-buttons">
-                            ${!session.paid ? `<button class="icon-btn" onclick="markPaid(${session.id})">${t('btnMarkPaid')}</button>` : ''}
+                            ${!session.paid ? `<button class="icon-btn" onclick="markPaid(${session.id})">${t('btnMarkPaid')}</button>` : `<button class="icon-btn" onclick="markUnpaid(${session.id})" style="background: #fff3cd; color: #856404; border-color: #ffc107;">${t('btnMarkUnpaid')}</button>`}
                             <button class="icon-btn" onclick="editSession(${session.id})">${t('btnEdit')}</button>
                             <button class="icon-btn danger" onclick="deleteSession(${session.id})">${t('btnDelete')}</button>
                         </div>
@@ -731,12 +825,14 @@
             const sessionStudio = document.getElementById('sessionStudio');
             const filterStudio = document.getElementById('filterStudio');
             const bulkPaymentStudio = document.getElementById('bulkPaymentStudio');
+            const bulkUnmarkStudio = document.getElementById('bulkUnmarkStudio');
             
             const options = studios.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             
             sessionStudio.innerHTML = options || '<option value="">No studios available</option>';
             filterStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
             bulkPaymentStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            bulkUnmarkStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
         }
 
         // Studio modal
@@ -1171,6 +1267,31 @@
         
         let selectedSessionIds = [];
         
+        // === BULK OPERATIONS MENU ===
+        
+        function showBulkOperation(operationType) {
+            // Hide all operation contents
+            document.getElementById('bulkMarkPaid').style.display = 'none';
+            document.getElementById('bulkMarkUnpaid').style.display = 'none';
+            
+            // Hide results
+            document.getElementById('unpaidSessionsList').style.display = 'none';
+            document.getElementById('paidSessionsList').style.display = 'none';
+            
+            // Reset selections
+            selectedSessionIds = [];
+            selectedUnmarkIds = [];
+            
+            // Show selected operation
+            if (operationType === 'mark-paid') {
+                document.getElementById('bulkMarkPaid').style.display = 'block';
+            } else if (operationType === 'mark-unpaid') {
+                document.getElementById('bulkMarkUnpaid').style.display = 'block';
+            }
+            
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
         function showUnpaidSessions() {
             const studioId = document.getElementById('bulkPaymentStudio').value;
             const dateFrom = document.getElementById('bulkPaymentDateFrom').value;
@@ -1337,6 +1458,193 @@
             selectedSessionIds = [];
             loadData();
             showUnpaidSessions(); // Refresh the list
+        }
+
+        // === BULK UNMARK FUNCTIONS ===
+        
+        let selectedUnmarkIds = [];
+        
+        // Individual session unmark
+        function markUnpaid(sessionId) {
+            if (confirm(t('confirmUnmark'))) {
+                const session = sessions.find(s => s.id === sessionId);
+                if (session) {
+                    session.paid = false;
+                    saveSessions(sessions);
+                    loadData();
+                    
+                    if (tg) tg.HapticFeedback.notificationOccurred('success');
+                }
+            }
+        }
+        
+        function showPaidSessions() {
+            const studioId = document.getElementById('bulkUnmarkStudio').value;
+            const dateFrom = document.getElementById('bulkUnmarkDateFrom').value;
+            const dateTo = document.getElementById('bulkUnmarkDateTo').value;
+            
+            // Filter paid sessions
+            let paidSessions = sessions.filter(s => s.paid);
+            
+            // Filter by studio
+            if (studioId) {
+                paidSessions = paidSessions.filter(s => s.studioId === parseInt(studioId));
+            }
+            
+            // Filter by date range
+            if (dateFrom) {
+                paidSessions = paidSessions.filter(s => s.date >= dateFrom);
+            }
+            if (dateTo) {
+                paidSessions = paidSessions.filter(s => s.date <= dateTo);
+            }
+            
+            // Sort by date (newest first)
+            paidSessions.sort((a, b) => {
+                const dateCompare = b.date.localeCompare(a.date);
+                if (dateCompare !== 0) return dateCompare;
+                return b.time.localeCompare(a.time);
+            });
+            
+            // Render
+            const container = document.getElementById('paidSessionsContent');
+            const listContainer = document.getElementById('paidSessionsList');
+            
+            if (paidSessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <div>${t('noPaidSessions')}</div>
+                    </div>
+                `;
+                listContainer.style.display = 'block';
+                selectedUnmarkIds = [];
+                updateBulkUnmarkSummary();
+                return;
+            }
+            
+            container.innerHTML = paidSessions.map(session => {
+                const studio = studios.find(s => s.id === session.studioId);
+                const payment = calculatePayment(session, studio);
+                const isSelected = selectedUnmarkIds.includes(session.id);
+                
+                return `
+                    <div class="session-item" style="display: flex; align-items: start; gap: 12px;">
+                        <input type="checkbox" 
+                               id="unmark-${session.id}" 
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleUnmarkSelection(${session.id})"
+                               style="width: 20px; height: 20px; margin-top: 4px; cursor: pointer;">
+                        <label for="unmark-${session.id}" style="flex: 1; cursor: pointer;">
+                            <div class="session-header">
+                                <div class="session-title">${studio ? studio.name : 'Unknown'}</div>
+                                <div class="session-amount">₾${payment.toFixed(2)}</div>
+                            </div>
+                            <div class="session-info">
+                                <div>📅 ${session.date} ${t('at')} ${session.time}</div>
+                                <div>👤 ${session.coachName}</div>
+                                <div>
+                                    <span class="badge ${session.sessionType === 'group' ? 'badge-group' : 'badge-individual'}">${t(session.sessionType)}</span>
+                                    <span class="badge badge-success">${t('paid')}</span>
+                                    ${session.sessionType === 'group' ? `<span>${session.numClients} ${t('clients')}</span>` : ''}
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+            
+            listContainer.style.display = 'block';
+            updateBulkUnmarkSummary();
+            
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
+        function toggleUnmarkSelection(sessionId) {
+            const index = selectedUnmarkIds.indexOf(sessionId);
+            if (index > -1) {
+                selectedUnmarkIds.splice(index, 1);
+            } else {
+                selectedUnmarkIds.push(sessionId);
+            }
+            updateBulkUnmarkSummary();
+            
+            if (tg) tg.HapticFeedback.selectionChanged();
+        }
+        
+        function selectAllPaid() {
+            // Get all checkboxes
+            const checkboxes = document.querySelectorAll('#paidSessionsContent input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                const sessionId = parseInt(cb.id.replace('unmark-', ''));
+                if (!selectedUnmarkIds.includes(sessionId)) {
+                    selectedUnmarkIds.push(sessionId);
+                }
+            });
+            updateBulkUnmarkSummary();
+            
+            if (tg) tg.HapticFeedback.impactOccurred('medium');
+        }
+        
+        function deselectAllPaid() {
+            // Get all checkboxes
+            const checkboxes = document.querySelectorAll('#paidSessionsContent input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            selectedUnmarkIds = [];
+            updateBulkUnmarkSummary();
+            
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
+        function updateBulkUnmarkSummary() {
+            const selectedSessions = sessions.filter(s => selectedUnmarkIds.includes(s.id));
+            const totalAmount = selectedSessions.reduce((sum, session) => {
+                const studio = studios.find(s => s.id === session.studioId);
+                return sum + calculatePayment(session, studio);
+            }, 0);
+            
+            document.getElementById('selectedUnmarkCount').textContent = selectedSessions.length;
+            document.getElementById('totalUnmarkAmount').textContent = `₾${totalAmount.toFixed(2)}`;
+        }
+        
+        function markSelectedAsUnpaid() {
+            if (selectedUnmarkIds.length === 0) {
+                if (tg) {
+                    tg.showAlert(t('pleaseSelectSessions'));
+                    tg.HapticFeedback.notificationOccurred('error');
+                } else {
+                    alert(t('pleaseSelectSessions'));
+                }
+                return;
+            }
+            
+            // Mark sessions as unpaid
+            selectedUnmarkIds.forEach(sessionId => {
+                const session = sessions.find(s => s.id === sessionId);
+                if (session) {
+                    session.paid = false;
+                }
+            });
+            
+            // Save to localStorage
+            saveSessions(sessions);
+            
+            // Show success message
+            const count = selectedUnmarkIds.length;
+            if (tg) {
+                tg.showAlert(`🔄 ${count} ${t('sessionMarkedUnpaid')}`);
+                tg.HapticFeedback.notificationOccurred('success');
+            } else {
+                alert(`🔄 ${count} ${t('sessionMarkedUnpaid')}`);
+            }
+            
+            // Reset and refresh
+            selectedUnmarkIds = [];
+            loadData();
+            showPaidSessions(); // Refresh the list
         }
 
         // Initialize
