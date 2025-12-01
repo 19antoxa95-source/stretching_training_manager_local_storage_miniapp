@@ -485,11 +485,12 @@
                 return studio.paymentIndividual || 0;
             } else {
                 const numClients = session.numClients || 0;
-                if (numClients <= studio.startCountFrom) {
+                // If clients < startCountFrom: use minimum payment
+                // If clients >= startCountFrom: multiply clients by payment per client
+                if (numClients < studio.startCountFrom) {
                     return studio.minimumPayment;
                 } else {
-                    const extraClients = numClients - studio.startCountFrom;
-                    return studio.minimumPayment + (extraClients * studio.paymentPerClient);
+                    return numClients * studio.paymentPerClient;
                 }
             }
         }
@@ -808,13 +809,14 @@
                 payment = studio.paymentIndividual || 0;
                 text = t('individual');
             } else {
-                if (numClients <= studio.startCountFrom) {
+                // If clients < startCountFrom: minimum payment
+                // If clients >= startCountFrom: clients × payment per client
+                if (numClients < studio.startCountFrom) {
                     payment = studio.minimumPayment;
                     text = `${t('labelMinPayment')}`;
                 } else {
-                    const extraClients = numClients - studio.startCountFrom;
-                    payment = studio.minimumPayment + (extraClients * studio.paymentPerClient);
-                    text = `₾${studio.minimumPayment} + ${extraClients} × ₾${studio.paymentPerClient}`;
+                    payment = numClients * studio.paymentPerClient;
+                    text = `${numClients} × ₾${studio.paymentPerClient}`;
                 }
             }
             
