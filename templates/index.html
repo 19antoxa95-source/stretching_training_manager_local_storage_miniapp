@@ -296,18 +296,60 @@
                     <label data-lang-key="labelStudioName">Studio Name</label>
                     <input type="text" class="input-field" id="studioName" required>
                 </div>
+                
+                <!-- Payment Schema Selection -->
                 <div class="form-group">
-                    <label data-lang-key="labelMinPayment">Minimum Payment (₾)</label>
-                    <input type="number" class="input-field" id="studioMinPayment" step="0.01" required>
+                    <label data-lang-key="labelPaymentSchema">Payment Schema</label>
+                    <select class="input-field" id="studioPaymentSchema" onchange="togglePaymentSchema()" style="font-size: 16px; font-weight: 500;">
+                        <option value="per-client" data-lang-key="schemaPerClient">💰 Payment Per Client</option>
+                        <option value="percent" data-lang-key="schemaPercent">📊 Payment by Percent</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label data-lang-key="labelPaymentPerClient">Payment Per Client (₾)</label>
-                    <input type="number" class="input-field" id="studioPaymentPerClient" step="0.01" required>
+                
+                <!-- Schema 1: Per Client (Current) -->
+                <div id="schemaPerClient" class="payment-schema-fields">
+                    <div class="info-box" style="margin-bottom: 12px;">
+                        <div class="info-box-text" data-lang-key="schemaPerClientInfo">
+                            💡 Fixed minimum + payment per client above threshold
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelMinPayment">Minimum Payment (₾)</label>
+                        <input type="number" class="input-field" id="studioMinPayment" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelPaymentPerClient">Payment Per Client (₾)</label>
+                        <input type="number" class="input-field" id="studioPaymentPerClient" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelStartCount">Start Count From</label>
+                        <input type="number" class="input-field" id="studioStartCount" value="1">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label data-lang-key="labelStartCount">Start Count From</label>
-                    <input type="number" class="input-field" id="studioStartCount" value="1" required>
+                
+                <!-- Schema 2: By Percent (New) -->
+                <div id="schemaPercent" class="payment-schema-fields" style="display: none;">
+                    <div class="info-box" style="margin-bottom: 12px;">
+                        <div class="info-box-text" data-lang-key="schemaPercentInfo">
+                            💡 Percentage of session price (different rates for 1-on-1 vs group)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelSessionPrice">Session Price for Clients (₾)</label>
+                        <input type="number" class="input-field" id="studioSessionPrice" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelIndividualPercent">Individual Session Percent (%)</label>
+                        <input type="number" class="input-field" id="studioIndividualPercent" step="0.1" min="0" max="100" value="50">
+                        <small style="color: var(--tg-theme-hint-color); font-size: 12px; margin-top: 4px; display: block;" data-lang-key="individualPercentHint">When only 1 client</small>
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelGroupPercent">Group Session Percent (%)</label>
+                        <input type="number" class="input-field" id="studioGroupPercent" step="0.1" min="0" max="100" value="30">
+                        <small style="color: var(--tg-theme-hint-color); font-size: 12px; margin-top: 4px; display: block;" data-lang-key="groupPercentHint">When 2+ clients</small>
+                    </div>
                 </div>
+                
                 <div class="form-group">
                     <label data-lang-key="labelIndividual">Individual Payment (₾)</label>
                     <input type="number" class="input-field" id="studioIndividual" step="0.01" value="0">
@@ -397,6 +439,16 @@
                 modalAddSession: 'Add Session',
                 modalEditSession: 'Edit Session',
                 labelStudioName: 'Studio Name',
+                labelPaymentSchema: 'Payment Schema',
+                schemaPerClient: '💰 Payment Per Client',
+                schemaPercent: '📊 Payment by Percent',
+                schemaPerClientInfo: '💡 Fixed minimum + payment per client above threshold',
+                schemaPercentInfo: '💡 Percentage of session price (different rates for 1-on-1 vs group)',
+                labelSessionPrice: 'Session Price for Clients (₾)',
+                labelIndividualPercent: 'Individual Session Percent (%)',
+                labelGroupPercent: 'Group Session Percent (%)',
+                individualPercentHint: 'When only 1 client',
+                groupPercentHint: 'When 2+ clients',
                 labelMinPayment: 'Minimum Payment (₾)',
                 labelPaymentPerClient: 'Payment Per Client (₾)',
                 labelStartCount: 'Start Count From',
@@ -485,6 +537,16 @@
                 modalAddSession: 'Добавить сессию',
                 modalEditSession: 'Редактировать сессию',
                 labelStudioName: 'Название студии',
+                labelPaymentSchema: 'Схема оплаты',
+                schemaPerClient: '💰 Оплата за клиента',
+                schemaPercent: '📊 Оплата процентом',
+                schemaPerClientInfo: '💡 Фиксированный минимум + оплата за клиента выше порога',
+                schemaPercentInfo: '💡 Процент от стоимости сессии (разные ставки для 1-на-1 и группы)',
+                labelSessionPrice: 'Стоимость сессии для клиентов (₾)',
+                labelIndividualPercent: 'Процент индивидуальной сессии (%)',
+                labelGroupPercent: 'Процент групповой сессии (%)',
+                individualPercentHint: 'Когда только 1 клиент',
+                groupPercentHint: 'Когда 2+ клиента',
                 labelMinPayment: 'Минимальная оплата (₾)',
                 labelPaymentPerClient: 'Оплата за клиента (₾)',
                 labelStartCount: 'Начать счёт с',
@@ -647,13 +709,32 @@
                 return studio.paymentIndividual || 0;
             } else {
                 const numClients = session.numClients || 0;
-                // If clients < startCountFrom: use minimum payment
-                // If clients >= startCountFrom: multiply clients by payment per client
-                if (numClients < studio.startCountFrom) {
-                    return studio.minimumPayment;
-                } else {
-                    return numClients * studio.paymentPerClient;
+                const schema = studio.paymentSchema || 'per-client';
+                
+                if (schema === 'per-client') {
+                    // Schema 1: Per Client
+                    // If clients < startCountFrom: use minimum payment
+                    // If clients >= startCountFrom: multiply clients by payment per client
+                    if (numClients < studio.startCountFrom) {
+                        return studio.minimumPayment || 0;
+                    } else {
+                        return numClients * (studio.paymentPerClient || 0);
+                    }
+                } else if (schema === 'percent') {
+                    // Schema 2: By Percent
+                    // If 1 client: sessionPrice × individualPercent
+                    // If 2+ clients: sessionPrice × numClients × groupPercent
+                    const sessionPrice = studio.sessionPrice || 0;
+                    if (numClients === 1) {
+                        return sessionPrice * (studio.individualPercent || 0) / 100;
+                    } else if (numClients > 1) {
+                        return sessionPrice * numClients * (studio.groupPercent || 0) / 100;
+                    } else {
+                        return 0;
+                    }
                 }
+                
+                return 0;
             }
         }
 
@@ -758,21 +839,41 @@
                 return;
             }
 
-            container.innerHTML = studios.map(studio => `
-                <div class="studio-item" style="border-left-color: ${studio.color}">
-                    <div class="studio-name">🏢 ${studio.name}</div>
-                    <div class="studio-info">
-                        <div>💰 ${t('labelMinPayment')}: ₾${studio.minimumPayment}</div>
-                        <div>👥 ${t('labelPaymentPerClient')}: ₾${studio.paymentPerClient}</div>
-                        <div>🔢 ${t('labelStartCount')}: ${studio.startCountFrom}</div>
-                        <div>👤 ${t('labelIndividual')}: ₾${studio.paymentIndividual || 0}</div>
+            container.innerHTML = studios.map(studio => {
+                const schema = studio.paymentSchema || 'per-client';
+                let schemaInfo = '';
+                
+                if (schema === 'per-client') {
+                    schemaInfo = `
+                        <div>💰 ${t('labelMinPayment')}: ₾${studio.minimumPayment || 0}</div>
+                        <div>👥 ${t('labelPaymentPerClient')}: ₾${studio.paymentPerClient || 0}</div>
+                        <div>🔢 ${t('labelStartCount')}: ${studio.startCountFrom || 1}</div>
+                    `;
+                } else if (schema === 'percent') {
+                    schemaInfo = `
+                        <div>💵 ${t('labelSessionPrice')}: ₾${studio.sessionPrice || 0}</div>
+                        <div>👤 ${t('labelIndividualPercent')}: ${studio.individualPercent || 0}%</div>
+                        <div>👥 ${t('labelGroupPercent')}: ${studio.groupPercent || 0}%</div>
+                    `;
+                }
+                
+                return `
+                    <div class="studio-item" style="border-left-color: ${studio.color}">
+                        <div class="studio-name">🏢 ${studio.name}</div>
+                        <div class="studio-info" style="font-size: 13px; color: var(--tg-theme-hint-color); margin-bottom: 8px;">
+                            ${schema === 'per-client' ? '💰 ' + t('schemaPerClient') : '📊 ' + t('schemaPercent')}
+                        </div>
+                        <div class="studio-info">
+                            ${schemaInfo}
+                            <div>👤 ${t('labelIndividual')}: ₾${studio.paymentIndividual || 0}</div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="icon-btn" onclick="editStudio(${studio.id})">${t('btnEdit')}</button>
+                            <button class="icon-btn danger" onclick="deleteStudio(${studio.id})">${t('btnDelete')}</button>
+                        </div>
                     </div>
-                    <div class="action-buttons">
-                        <button class="icon-btn" onclick="editStudio(${studio.id})">${t('btnEdit')}</button>
-                        <button class="icon-btn danger" onclick="deleteStudio(${studio.id})">${t('btnDelete')}</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Render sessions
@@ -836,15 +937,37 @@
         }
 
         // Studio modal
+        // Studio modal
+        function togglePaymentSchema() {
+            const schema = document.getElementById('studioPaymentSchema').value;
+            document.getElementById('schemaPerClient').style.display = schema === 'per-client' ? 'block' : 'none';
+            document.getElementById('schemaPercent').style.display = schema === 'percent' ? 'block' : 'none';
+            
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
         function openStudioModal(studioId = null) {
             if (studioId) {
                 const studio = studios.find(s => s.id === studioId);
                 document.getElementById('studioModalTitle').textContent = t('modalEditStudio');
                 document.getElementById('studioId').value = studio.id;
                 document.getElementById('studioName').value = studio.name;
-                document.getElementById('studioMinPayment').value = studio.minimumPayment;
-                document.getElementById('studioPaymentPerClient').value = studio.paymentPerClient;
-                document.getElementById('studioStartCount').value = studio.startCountFrom;
+                
+                // Set payment schema
+                const schema = studio.paymentSchema || 'per-client';
+                document.getElementById('studioPaymentSchema').value = schema;
+                togglePaymentSchema();
+                
+                // Set per-client schema fields
+                document.getElementById('studioMinPayment').value = studio.minimumPayment || 0;
+                document.getElementById('studioPaymentPerClient').value = studio.paymentPerClient || 0;
+                document.getElementById('studioStartCount').value = studio.startCountFrom || 1;
+                
+                // Set percent schema fields
+                document.getElementById('studioSessionPrice').value = studio.sessionPrice || 0;
+                document.getElementById('studioIndividualPercent').value = studio.individualPercent || 50;
+                document.getElementById('studioGroupPercent').value = studio.groupPercent || 30;
+                
                 document.getElementById('studioIndividual').value = studio.paymentIndividual || 0;
                 document.getElementById('studioColor').value = studio.color;
             } else {
@@ -852,6 +975,8 @@
                 document.getElementById('studioForm').reset();
                 document.getElementById('studioId').value = '';
                 document.getElementById('studioColor').value = '#3390ec';
+                document.getElementById('studioPaymentSchema').value = 'per-client';
+                togglePaymentSchema();
             }
             document.getElementById('studioModal').classList.add('active');
             if (tg) tg.HapticFeedback.impactOccurred('light');
@@ -865,15 +990,26 @@
             e.preventDefault();
             
             const id = document.getElementById('studioId').value;
+            const schema = document.getElementById('studioPaymentSchema').value;
+            
             const studioData = {
                 id: id ? parseInt(id) : Date.now(),
                 name: document.getElementById('studioName').value,
-                minimumPayment: parseFloat(document.getElementById('studioMinPayment').value),
-                paymentPerClient: parseFloat(document.getElementById('studioPaymentPerClient').value),
-                startCountFrom: parseInt(document.getElementById('studioStartCount').value),
+                paymentSchema: schema,
                 paymentIndividual: parseFloat(document.getElementById('studioIndividual').value) || 0,
                 color: document.getElementById('studioColor').value
             };
+            
+            // Add schema-specific fields
+            if (schema === 'per-client') {
+                studioData.minimumPayment = parseFloat(document.getElementById('studioMinPayment').value) || 0;
+                studioData.paymentPerClient = parseFloat(document.getElementById('studioPaymentPerClient').value) || 0;
+                studioData.startCountFrom = parseInt(document.getElementById('studioStartCount').value) || 1;
+            } else if (schema === 'percent') {
+                studioData.sessionPrice = parseFloat(document.getElementById('studioSessionPrice').value) || 0;
+                studioData.individualPercent = parseFloat(document.getElementById('studioIndividualPercent').value) || 50;
+                studioData.groupPercent = parseFloat(document.getElementById('studioGroupPercent').value) || 30;
+            }
 
             if (id) {
                 const index = studios.findIndex(s => s.id === parseInt(id));
