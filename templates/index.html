@@ -87,9 +87,9 @@
     <div class="content">
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
-            <!-- Period Filter -->
+            <!-- Period & Studio Filter -->
             <div class="card">
-                <h2 class="section-title" data-lang-key="dashboardPeriod">📅 Period</h2>
+                <h2 class="section-title" data-lang-key="dashboardFilters">📊 Filters</h2>
                 <div class="filter-section">
                     <div class="form-group">
                         <label data-lang-key="labelPeriod">Period</label>
@@ -100,6 +100,13 @@
                             <option value="this-year" data-lang-key="periodThisYear">📈 This Year</option>
                             <option value="last-year" data-lang-key="periodLastYear">📉 Last Year</option>
                             <option value="custom" data-lang-key="periodCustom">🗓️ Custom Period</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="labelStudio">Studio</label>
+                        <select class="input-field" id="dashboardStudio" onchange="changeDashboardStudio()" style="font-size: 16px; font-weight: 500;">
+                            <option value="" data-lang-key="allStudios">🏢 All Studios</option>
+                            <!-- Studios will be populated dynamically -->
                         </select>
                     </div>
                     <!-- Custom Period Date Pickers -->
@@ -451,6 +458,7 @@
                 appTitle: 'Stretch Studio Manager',
                 tabDashboard: '📊 Dashboard',
                 dashboardPeriod: '📅 Period',
+                dashboardFilters: '📊 Filters',
                 labelPeriod: 'Period',
                 periodDaily: '📅 Today',
                 periodWeekly: '📆 This Week',
@@ -557,6 +565,7 @@
                 appTitle: 'Менеджер Студии',
                 tabDashboard: '📊 Панель',
                 dashboardPeriod: '📅 Период',
+                dashboardFilters: '📊 Фильтры',
                 labelPeriod: 'Период',
                 periodDaily: '📅 Сегодня',
                 periodWeekly: '📆 Эта неделя',
@@ -799,52 +808,61 @@
 
         // Render all
         function renderAll() {
+            console.log('renderAll called');
             renderDashboardStats();
-            renderRecentSessions();
+            // renderRecentSessions(); // Removed - handled by updateDashboard in renderDashboardStats
             renderStudios();
             renderSessions();
             updateStudioDropdowns();
         }
 
         // Render dashboard stats
-        // === DASHBOARD PERIOD FILTERING ===
+        // === DASHBOARD FILTERING (PERIOD + STUDIO) ===
         
-        let dashboardPeriodFilter = {
+        let dashboardFilter = {
             type: 'monthly',
             dateFrom: null,
-            dateTo: null
+            dateTo: null,
+            studioId: null  // null = all studios
         };
         
         function changeDashboardPeriod() {
             const periodType = document.getElementById('dashboardPeriod').value;
-            dashboardPeriodFilter.type = periodType;
+            dashboardFilter.type = periodType;
             
             // Show/hide custom date fields
             const customFields = document.getElementById('customPeriodFields');
             if (periodType === 'custom') {
                 customFields.style.display = 'block';
                 // Set default dates if not set
-                if (!dashboardPeriodFilter.dateFrom) {
+                if (!dashboardFilter.dateFrom) {
                     const today = new Date().toISOString().split('T')[0];
                     const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                     document.getElementById('dashboardDateFrom').value = lastMonth;
                     document.getElementById('dashboardDateTo').value = today;
-                    dashboardPeriodFilter.dateFrom = lastMonth;
-                    dashboardPeriodFilter.dateTo = today;
+                    dashboardFilter.dateFrom = lastMonth;
+                    dashboardFilter.dateTo = today;
                 }
             } else {
                 customFields.style.display = 'none';
-                dashboardPeriodFilter.dateFrom = null;
-                dashboardPeriodFilter.dateTo = null;
+                dashboardFilter.dateFrom = null;
+                dashboardFilter.dateTo = null;
             }
             
             updateDashboard();
             if (tg) tg.HapticFeedback.impactOccurred('light');
         }
         
+        function changeDashboardStudio() {
+            const studioValue = document.getElementById('dashboardStudio').value;
+            dashboardFilter.studioId = studioValue ? parseInt(studioValue) : null;
+            updateDashboard();
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
         function applyCustomPeriod() {
-            dashboardPeriodFilter.dateFrom = document.getElementById('dashboardDateFrom').value;
-            dashboardPeriodFilter.dateTo = document.getElementById('dashboardDateTo').value;
+            dashboardFilter.dateFrom = document.getElementById('dashboardDateFrom').value;
+            dashboardFilter.dateTo = document.getElementById('dashboardDateTo').value;
             updateDashboard();
             if (tg) tg.HapticFeedback.impactOccurred('light');
         }
@@ -890,9 +908,9 @@
                     
                 case 'custom':
                     // Custom period
-                    if (dashboardPeriodFilter.dateFrom && dashboardPeriodFilter.dateTo) {
-                        startDate = new Date(dashboardPeriodFilter.dateFrom);
-                        endDate = new Date(dashboardPeriodFilter.dateTo);
+                    if (dashboardFilter.dateFrom && dashboardFilter.dateTo) {
+                        startDate = new Date(dashboardFilter.dateFrom);
+                        endDate = new Date(dashboardFilter.dateTo);
                         endDate.setHours(23, 59, 59);
                     } else {
                         return null;
@@ -906,19 +924,50 @@
             return { startDate, endDate };
         }
         
-        function filterSessionsByPeriod(sessions) {
-            const dateRange = getDateRange(dashboardPeriodFilter.type);
-            if (!dateRange) return sessions;
+        function filterSessions(sessions) {
+            // Safety check for undefined or null sessions
+            if (!sessions || !Array.isArray(sessions)) {
+                return [];
+            }
             
-            const { startDate, endDate } = dateRange;
+            let filtered = sessions;
             
-            return sessions.filter(session => {
-                const sessionDate = new Date(session.date);
-                return sessionDate >= startDate && sessionDate <= endDate;
-            });
+            // Filter by period
+            const dateRange = getDateRange(dashboardFilter.type);
+            if (dateRange) {
+                const { startDate, endDate } = dateRange;
+                
+                filtered = filtered.filter(session => {
+                    // Parse session date string (YYYY-MM-DD) as local date
+                    const dateParts = session.date.split('-');
+                    const sessionDate = new Date(
+                        parseInt(dateParts[0]),  // year
+                        parseInt(dateParts[1]) - 1,  // month (0-indexed)
+                        parseInt(dateParts[2])  // day
+                    );
+                    return sessionDate >= startDate && sessionDate <= endDate;
+                });
+            }
+            
+            // Filter by studio (if selected)
+            if (dashboardFilter.studioId !== null) {
+                filtered = filtered.filter(session => session.studioId === dashboardFilter.studioId);
+            }
+            
+            return filtered;
         }
         
         function calculateStats(filteredSessions) {
+            // Safety check for undefined or null
+            if (!filteredSessions || !Array.isArray(filteredSessions)) {
+                return {
+                    totalSessions: 0,
+                    totalAttendees: 0,
+                    paidRevenue: 0,
+                    pendingRevenue: 0
+                };
+            }
+            
             const totalSessions = filteredSessions.length;
             const totalAttendees = filteredSessions.reduce((sum, s) => {
                 if (s.sessionType === 'group') {
@@ -951,11 +1000,31 @@
         }
         
         function updateDashboard() {
-            const filteredSessions = filterSessionsByPeriod(sessions);
+            console.log('updateDashboard called');
+            console.log('Sessions array:', sessions);
+            console.log('Dashboard filter:', dashboardFilter);
+            
+            // Safety check - ensure sessions array exists
+            if (!sessions || !Array.isArray(sessions)) {
+                console.warn('Sessions is not an array, initializing to empty array');
+                sessions = [];
+            }
+            
+            console.log('Sessions count:', sessions.length);
+            
+            const filteredSessions = filterSessions(sessions);
+            console.log('Filtered sessions count:', filteredSessions.length);
+            
             const periodStats = calculateStats(filteredSessions);
+            console.log('Stats:', periodStats);
             
             // Update stats display
             const container = document.getElementById('dashboardStats');
+            if (!container) {
+                console.warn('dashboardStats container not found');
+                return; // Element doesn't exist yet
+            }
+            
             container.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-value">${periodStats.totalSessions}</div>
@@ -981,6 +1050,13 @@
         
         function renderRecentSessionsFiltered(filteredSessions) {
             const container = document.getElementById('recentSessions');
+            
+            // Safety check
+            if (!container) return;
+            if (!filteredSessions || !Array.isArray(filteredSessions)) {
+                filteredSessions = [];
+            }
+            
             const recent = filteredSessions.slice(-10).reverse();
             
             if (recent.length === 0) {
@@ -1164,13 +1240,25 @@
             const filterStudio = document.getElementById('filterStudio');
             const bulkPaymentStudio = document.getElementById('bulkPaymentStudio');
             const bulkUnmarkStudio = document.getElementById('bulkUnmarkStudio');
+            const dashboardStudio = document.getElementById('dashboardStudio');
             
             const options = studios.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             
-            sessionStudio.innerHTML = options || '<option value="">No studios available</option>';
-            filterStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
-            bulkPaymentStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
-            bulkUnmarkStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            if (sessionStudio) {
+                sessionStudio.innerHTML = options || '<option value="">No studios available</option>';
+            }
+            if (filterStudio) {
+                filterStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            }
+            if (bulkPaymentStudio) {
+                bulkPaymentStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            }
+            if (bulkUnmarkStudio) {
+                bulkUnmarkStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            }
+            if (dashboardStudio) {
+                dashboardStudio.innerHTML = `<option value="">${t('allStudios')}</option>` + options;
+            }
         }
 
         // Studio modal
@@ -2020,9 +2108,32 @@
             showPaidSessions(); // Refresh the list
         }
 
-        // Initialize
-        updateLanguage();
-        loadData();
+        // Initialize - wrapped to ensure DOM is ready
+        function initializeApp() {
+            console.log('Initializing app...');
+            console.log('Sessions loaded:', sessions.length);
+            console.log('Studios loaded:', studios.length);
+            
+            updateLanguage();
+            loadData();
+            
+            // Set initial dashboard period dropdown value
+            const periodDropdown = document.getElementById('dashboardPeriod');
+            if (periodDropdown) {
+                periodDropdown.value = 'monthly';
+                console.log('Dashboard period set to monthly');
+            } else {
+                console.warn('Dashboard period dropdown not found');
+            }
+        }
+        
+        // Run initialization when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            // DOM already loaded
+            initializeApp();
+        }
     </script>
 </body>
 </html>
