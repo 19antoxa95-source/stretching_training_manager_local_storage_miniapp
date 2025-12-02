@@ -87,6 +87,35 @@
     <div class="content">
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
+            <!-- Period Filter -->
+            <div class="card">
+                <h2 class="section-title" data-lang-key="dashboardPeriod">📅 Period</h2>
+                <div class="filter-section">
+                    <div class="form-group">
+                        <label data-lang-key="labelPeriod">Period</label>
+                        <select class="input-field" id="dashboardPeriod" onchange="changeDashboardPeriod()" style="font-size: 16px; font-weight: 500;">
+                            <option value="daily" data-lang-key="periodDaily">📅 Today</option>
+                            <option value="weekly" data-lang-key="periodWeekly">📆 This Week</option>
+                            <option value="monthly" selected data-lang-key="periodMonthly">📊 This Month</option>
+                            <option value="this-year" data-lang-key="periodThisYear">📈 This Year</option>
+                            <option value="last-year" data-lang-key="periodLastYear">📉 Last Year</option>
+                            <option value="custom" data-lang-key="periodCustom">🗓️ Custom Period</option>
+                        </select>
+                    </div>
+                    <!-- Custom Period Date Pickers -->
+                    <div id="customPeriodFields" style="display: none;">
+                        <div class="form-group">
+                            <label data-lang-key="labelFromDate">From Date</label>
+                            <input type="date" class="input-field" id="dashboardDateFrom" onchange="applyCustomPeriod()">
+                        </div>
+                        <div class="form-group">
+                            <label data-lang-key="labelToDate">To Date</label>
+                            <input type="date" class="input-field" id="dashboardDateTo" onchange="applyCustomPeriod()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="stats-grid" id="dashboardStats"></div>
             <div class="card">
                 <h2 class="section-title" data-lang-key="recentSessions">Recent Sessions</h2>
@@ -421,6 +450,14 @@
             en: {
                 appTitle: 'Stretch Studio Manager',
                 tabDashboard: '📊 Dashboard',
+                dashboardPeriod: '📅 Period',
+                labelPeriod: 'Period',
+                periodDaily: '📅 Today',
+                periodWeekly: '📆 This Week',
+                periodMonthly: '📊 This Month',
+                periodThisYear: '📈 This Year',
+                periodLastYear: '📉 Last Year',
+                periodCustom: '🗓️ Custom Period',
                 tabStats: '📈 Stats',
                 tabSessions: '🏋️ Sessions',
                 tabStudios: '🏢 Studios',
@@ -519,6 +556,14 @@
             ru: {
                 appTitle: 'Менеджер Студии',
                 tabDashboard: '📊 Панель',
+                dashboardPeriod: '📅 Период',
+                labelPeriod: 'Период',
+                periodDaily: '📅 Сегодня',
+                periodWeekly: '📆 Эта неделя',
+                periodMonthly: '📊 Этот месяц',
+                periodThisYear: '📈 Этот год',
+                periodLastYear: '📉 Прошлый год',
+                periodCustom: '🗓️ Произвольный период',
                 tabStats: '📈 Статистика',
                 tabSessions: '🏋️ Сессии',
                 tabStudios: '🏢 Студии',
@@ -762,26 +807,218 @@
         }
 
         // Render dashboard stats
-        function renderDashboardStats() {
+        // === DASHBOARD PERIOD FILTERING ===
+        
+        let dashboardPeriodFilter = {
+            type: 'monthly',
+            dateFrom: null,
+            dateTo: null
+        };
+        
+        function changeDashboardPeriod() {
+            const periodType = document.getElementById('dashboardPeriod').value;
+            dashboardPeriodFilter.type = periodType;
+            
+            // Show/hide custom date fields
+            const customFields = document.getElementById('customPeriodFields');
+            if (periodType === 'custom') {
+                customFields.style.display = 'block';
+                // Set default dates if not set
+                if (!dashboardPeriodFilter.dateFrom) {
+                    const today = new Date().toISOString().split('T')[0];
+                    const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    document.getElementById('dashboardDateFrom').value = lastMonth;
+                    document.getElementById('dashboardDateTo').value = today;
+                    dashboardPeriodFilter.dateFrom = lastMonth;
+                    dashboardPeriodFilter.dateTo = today;
+                }
+            } else {
+                customFields.style.display = 'none';
+                dashboardPeriodFilter.dateFrom = null;
+                dashboardPeriodFilter.dateTo = null;
+            }
+            
+            updateDashboard();
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
+        function applyCustomPeriod() {
+            dashboardPeriodFilter.dateFrom = document.getElementById('dashboardDateFrom').value;
+            dashboardPeriodFilter.dateTo = document.getElementById('dashboardDateTo').value;
+            updateDashboard();
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+        
+        function getDateRange(periodType) {
+            const now = new Date();
+            let startDate, endDate;
+            
+            switch(periodType) {
+                case 'daily':
+                    // Today
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                    break;
+                    
+                case 'weekly':
+                    // This week (Monday to Sunday)
+                    const dayOfWeek = now.getDay();
+                    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust for Monday start
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+                    endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + 6);
+                    endDate.setHours(23, 59, 59);
+                    break;
+                    
+                case 'monthly':
+                    // This month
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                    break;
+                    
+                case 'this-year':
+                    // This year
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                    endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+                    break;
+                    
+                case 'last-year':
+                    // Last year
+                    startDate = new Date(now.getFullYear() - 1, 0, 1);
+                    endDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+                    break;
+                    
+                case 'custom':
+                    // Custom period
+                    if (dashboardPeriodFilter.dateFrom && dashboardPeriodFilter.dateTo) {
+                        startDate = new Date(dashboardPeriodFilter.dateFrom);
+                        endDate = new Date(dashboardPeriodFilter.dateTo);
+                        endDate.setHours(23, 59, 59);
+                    } else {
+                        return null;
+                    }
+                    break;
+                    
+                default:
+                    return null;
+            }
+            
+            return { startDate, endDate };
+        }
+        
+        function filterSessionsByPeriod(sessions) {
+            const dateRange = getDateRange(dashboardPeriodFilter.type);
+            if (!dateRange) return sessions;
+            
+            const { startDate, endDate } = dateRange;
+            
+            return sessions.filter(session => {
+                const sessionDate = new Date(session.date);
+                return sessionDate >= startDate && sessionDate <= endDate;
+            });
+        }
+        
+        function calculateStats(filteredSessions) {
+            const totalSessions = filteredSessions.length;
+            const totalAttendees = filteredSessions.reduce((sum, s) => {
+                if (s.sessionType === 'group') {
+                    return sum + (s.numClients || 0);
+                } else {
+                    return sum + 1;
+                }
+            }, 0);
+            
+            let paidRevenue = 0;
+            let pendingRevenue = 0;
+            
+            filteredSessions.forEach(session => {
+                const studio = studios.find(s => s.id === session.studioId);
+                const payment = calculatePayment(session, studio);
+                
+                if (session.paid) {
+                    paidRevenue += payment;
+                } else {
+                    pendingRevenue += payment;
+                }
+            });
+            
+            return {
+                totalSessions,
+                totalAttendees,
+                paidRevenue,
+                pendingRevenue
+            };
+        }
+        
+        function updateDashboard() {
+            const filteredSessions = filterSessionsByPeriod(sessions);
+            const periodStats = calculateStats(filteredSessions);
+            
+            // Update stats display
             const container = document.getElementById('dashboardStats');
             container.innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-value">${stats.totalSessions}</div>
+                    <div class="stat-value">${periodStats.totalSessions}</div>
                     <div class="stat-label">${t('statSessions')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${stats.totalAttendees}</div>
+                    <div class="stat-value">${periodStats.totalAttendees}</div>
                     <div class="stat-label">${t('statAttendees')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">₾${stats.paidRevenue.toFixed(2)}</div>
+                    <div class="stat-value">₾${periodStats.paidRevenue.toFixed(2)}</div>
                     <div class="stat-label">${t('statPaid')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">₾${stats.pendingRevenue.toFixed(2)}</div>
+                    <div class="stat-value">₾${periodStats.pendingRevenue.toFixed(2)}</div>
                     <div class="stat-label">${t('statPending')}</div>
                 </div>
             `;
+            
+            // Update recent sessions with filtered data
+            renderRecentSessionsFiltered(filteredSessions);
+        }
+        
+        function renderRecentSessionsFiltered(filteredSessions) {
+            const container = document.getElementById('recentSessions');
+            const recent = filteredSessions.slice(-10).reverse();
+            
+            if (recent.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>${t('emptySessions')}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = recent.map(session => {
+                const studio = studios.find(s => s.id === session.studioId);
+                const payment = calculatePayment(session, studio);
+                
+                return `
+                    <div class="session-item">
+                        <div class="session-header">
+                            <div class="session-title">${studio ? studio.name : 'Unknown'}</div>
+                            <div class="session-amount">₾${payment.toFixed(2)}</div>
+                        </div>
+                        <div class="session-info">
+                            <div>📅 ${session.date} ${t('at')} ${session.time}</div>
+                            <div>👤 ${session.coachName}</div>
+                            <div>
+                                <span class="badge ${session.sessionType === 'group' ? 'badge-group' : 'badge-individual'}">${t(session.sessionType)}</span>
+                                <span class="badge ${session.paid ? 'badge-success' : 'badge-warning'}">${session.paid ? t('paid') : t('pending')}</span>
+                                ${session.sessionType === 'group' ? `<span>${session.numClients} ${t('clients')}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderDashboardStats() {
+            updateDashboard();
         }
 
         // Render recent sessions
